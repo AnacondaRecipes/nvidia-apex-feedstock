@@ -2,9 +2,6 @@
 {% set version = "0.1" %}
 {% set commit = "088985936518be7e25795a30d8ab33affa9db6ed" %}
 
-{% set nvidia_apex_proc_type = "cpu" if cuda_compiler_version == "None" else "gpu" %}  # [linux64]
-{% set nvidia_apex_proc_type = "cpu" %}                                                # [not linux64]
-
 package:
   name: {{ name|lower }}
   version: {{ version }}
@@ -15,6 +12,8 @@ source:
 
 build:
   number: 0
+  string: cuda{{ cudatoolkit | replace('.', '') }}py{{ CONDA_PY }}h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}  # [variant == "gpu"]
+  string: cpu_py{{ CONDA_PY }}h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}                                      # [variant == "cpu"]
   skip: True  # [osx or py2k or (win and vc<14)]
 
 outputs:
@@ -22,7 +21,7 @@ outputs:
     version: {{ version }}
     build:
       number: 0
-      string: "{{ nvidia_apex_proc_type }}"
+      string: {{ variant }}
     test:
       commands:
         - exit 0
@@ -41,12 +40,14 @@ outputs:
       build:
         - {{ compiler('c') }}
         - {{ compiler('cxx') }}
-        - {{ compiler('cuda') }}  # [linux64 and cuda_compiler_version != "None"]
       host:
         - python
         - pytorch
         - setuptools
         - pip
+        - cudatoolkit {{ cudatoolkit }}*  # [variant == "gpu"]
+        # might not need this
+        - cudnn {{ cudnn }}*              # [variant == "gpu"]
       run:
         - python
         - pytorch
@@ -56,7 +57,7 @@ outputs:
         - PyYAML
         - pytest
       run_constrained:
-        - nvidia-apex-proc * {{ nvidia_apex_proc_type }}
+        - nvidia-apex-proc * {{ variant }}
     test:
       imports:
         - apex
